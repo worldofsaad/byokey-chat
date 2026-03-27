@@ -135,3 +135,9 @@ i18n-unused-keys-report.json
 pnpm-lock.yaml
 .turbo
 spaHtmlTemplates.ts
+
+# Playwright
+playwright-report/
+
+# Cloudflare
+.wrangler/

@@ -1,0 +1,66 @@
+name: Task
+description: A development task for BYOKey Chat
+title: '[TASK] '
+labels: ['task']
+body:
+  - type: input
+    id: epic
+    attributes:
+      label: Epic
+      description: Which epic does this task belong to?
+      placeholder: 'e.g., Zero-Knowledge Vault, BYOK Layer, AI Proxy Worker'
+    validations:
+      required: true
+
+  - type: input
+    id: branch-name
+    attributes:
+      label: Branch Name
+      description: The branch to create for this task (use type/description-kebab-case)
+      placeholder: 'e.g., feat/vault-encryption, fix/proxy-cors-headers'
+    validations:
+      required: true
+
+  - type: textarea
+    id: deliverable
+    attributes:
+      label: Deliverable
+      description: What is the single, concrete output of this task?
+      placeholder: |
+        Example: Implement AES-256-GCM encrypt/decrypt functions in packages/core/src/vault/crypto.ts
+        that use Web Crypto API. Functions must handle plaintext string input and return
+        EncryptedPayload (ciphertext + IV). Each encryption must use a unique random IV.
+    validations:
+      required: true
+
+  - type: textarea
+    id: tests-first
+    attributes:
+      label: Tests to Write FIRST
+      description: List the test cases to write BEFORE implementation (TDD red phase)
+      placeholder: |
+        - [ ] encrypt() returns EncryptedPayload with ciphertext and 12-byte IV
+        - [ ] decrypt() with correct key recovers original plaintext
+        - [ ] encrypt() produces different ciphertext for same input (random IV)
+        - [ ] decrypt() with wrong key throws an error
+        - [ ] encrypt() handles empty string input
+        - [ ] encrypt() handles unicode input
+    validations:
+      required: true
+
+  - type: textarea
+    id: security-considerations
+    attributes:
+      label: Security Considerations
+      description: Any security implications or requirements for this task?
+      placeholder: |
+        - Must use Web Crypto API, not Node.js crypto
+        - Plaintext must never be logged or stored
+        - IV must be cryptographically random (crypto.getRandomValues)
+
+  - type: input
+    id: estimate
+    attributes:
+      label: Estimate
+      description: Time estimate in days
+      placeholder: 'e.g., 0.5, 1, 2'

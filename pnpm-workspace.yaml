@@ -1,5 +1,6 @@
 packages:
   - packages/**
+  - workers/*
   - .
   - e2e
   - apps/desktop/src/main

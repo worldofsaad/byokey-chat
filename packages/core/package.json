@@ -1,0 +1,21 @@
+{
+  "name": "@byokey/core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./vault": "./src/vault/index.ts",
+    "./vault/*": "./src/vault/*.ts"
+  },
+  "scripts": {
+    "test": "vitest",
+    "test:coverage": "vitest --coverage --silent='passed-only'"
+  },
+  "dependencies": {
+    "@byokey/types": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.1"
+  }
+}

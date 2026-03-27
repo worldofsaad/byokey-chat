@@ -1,47 +1,41 @@
-#### 💻 Change Type
+## What This Does
 
-<!-- For change type, change [ ] to [x]. -->
+<!-- One sentence: what does this PR deliver? -->
 
-- [ ] ✨ feat
-- [ ] 🐛 fix
-- [ ] ♻️ refactor
-- [ ] 💄 style
-- [ ] 👷 build
-- [ ] ⚡️ perf
-- [ ] ✅ test
-- [ ] 📝 docs
-- [ ] 🔨 chore
+## Task Issue
 
-#### 🔗 Related Issue
+Closes #\_\_\_
 
-<!-- Link to the issue that is fixed by this PR -->
+## TDD Checklist
 
-<!-- Example: Fixes #xxx, Closes #xxx, Related to #xxx -->
+- [ ] Tests written BEFORE implementation
+- [ ] All new tests passing
+- [ ] No existing tests broken
+- [ ] Coverage thresholds met
 
-#### 🔀 Description of Change
+## Security Checklist
 
-<!-- Thank you for your Pull Request. Please provide a description above. -->
+- [ ] No plaintext API keys in any code path
+- [ ] No sensitive data in console.log or error messages
+- [ ] Input validation for all user-provided data
+- [ ] Web Crypto API used (not Node.js crypto) for browser code
+- [ ] No new dependencies with known vulnerabilities
 
-#### 🧪 How to Test
+## Type of Change
 
-<!-- Please describe how you tested your changes -->
+- [ ] feat — new feature
+- [ ] fix — bug fix
+- [ ] test — test only
+- [ ] security — security improvement
+- [ ] refactor — code cleanup
+- [ ] docs — documentation
+- [ ] ci — CI/CD changes
 
-<!-- For AI features, please include test prompts or scenarios -->
+## Lessons Learned
 
-- [ ] Tested locally
-- [ ] Added/updated tests
-- [ ] No tests needed
+<!-- Did you discover anything non-obvious during this task? A LobeChat quirk, a dependency issue, a build gotcha, an architecture insight? -->
 
-#### 📸 Screenshots / Videos
+- [ ] Nothing new discovered
+- [ ] Added entry to CLAUDE.md Lessons Learned section (describe briefly below)
 
-<!-- If this PR includes UI changes, please provide screenshots or videos -->
-
-| Before | After |
-| ------ | ----- |
-| ...    | ...   |
-
-#### 📝 Additional Information
-
-<!-- Add any other context about the Pull Request here. -->
-
-<!-- Breaking changes? Migration guide? Performance impact? -->
+<!-- If you added a lesson, one-line summary here: -->

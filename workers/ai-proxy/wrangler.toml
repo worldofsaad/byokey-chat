@@ -1,0 +1,10 @@
+name = "byokey-ai-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+# SECURITY: This worker is intentionally stateless.
+# NO persistent storage bindings (KV, D1, R2, Durable Objects, Queues).
+# The worker only forwards requests and immediately discards all data.
+
+[observability]
+enabled = true

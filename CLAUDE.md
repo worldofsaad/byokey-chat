@@ -1,122 +1,253 @@
-# CLAUDE.md
+# CLAUDE.md — BYOKey Chat
 
-Guidelines for using Claude Code in this LobeHub repository.
+## Project Summary
+
+BYOKey Chat is a fork of [LobeChat](https://github.com/lobehub/lobe-chat) (MIT license, \~48k+ stars) converted into a **free, open-source, hosted BYOK (Bring Your Own Key) AI chat app** with zero-knowledge encrypted API key storage.
+
+**Key differentiator from LobeHub Cloud:** LobeHub sells AI credits ($9.90–$39.90/month). We are 100% free because BYOK is the _only_ way to use it. Users pay their own AI providers directly. Our server never sees plaintext API keys.
+
+**Core modification:** Replace server-level API key configuration with per-user encrypted key storage using a zero-knowledge vault (AES-256-GCM + PBKDF2, client-side only).
+
+---
+
+## Repository Structure
+
+```plaintext
+byokey-chat/
+├── apps/
+│   └── desktop/                # Electron desktop app
+├── packages/                   # Shared packages
+│   ├── core/                   # NEW: @byokey/core — vault crypto, key derivation, vault store
+│   │   └── src/vault/          #   AES-256-GCM encrypt/decrypt, PBKDF2, Zustand vault state
+│   ├── security/               # NEW: @byokey/security — URL validation, input sanitization
+│   │   └── src/validation/
+│   ├── types/                  # NEW: @byokey/types — shared TypeScript interfaces
+│   ├── database/               # Drizzle ORM schemas, models, repositories
+│   ├── agent-runtime/          # Agent runtime
+│   ├── model-runtime/          # Model provider integrations
+│   └── ...                     # ~40+ existing LobeChat packages
+├── workers/
+│   └── ai-proxy/               # NEW: Cloudflare Worker streaming proxy (stateless CORS solution)
+│       ├── src/index.ts
+│       └── wrangler.toml
+├── src/
+│   ├── app/                    # Next.js App Router (backend API + auth)
+│   │   ├── (backend)/          #   API routes (trpc, webapi, etc.)
+│   │   ├── spa/                #   SPA HTML template service
+│   │   └── [variants]/(auth)/  #   Auth pages (SSR)
+│   ├── routes/                 # SPA page components (Vite)
+│   │   ├── (main)/             #   Desktop pages
+│   │   ├── (mobile)/           #   Mobile pages
+│   │   └── (desktop)/          #   Desktop-specific pages
+│   ├── spa/                    # SPA entry points and router config
+│   ├── store/                  # Zustand stores
+│   ├── services/               # Client services
+│   ├── server/                 # Server services and routers
+│   ├── features/               # Business components by domain
+│   └── libs/                   # Shared libraries
+├── e2e/                        # E2E tests (Cucumber + Playwright)
+├── locales/                    # i18n translations
+├── docker-compose/             # Docker dev environment
+├── scripts/                    # Build and workflow scripts
+└── docs/                       # Documentation
+```
+
+---
 
 ## Tech Stack
 
-- Next.js 16 + React 19 + TypeScript
-- SPA inside Next.js with `react-router-dom`
-- `@lobehub/ui`, antd for components; antd-style for CSS-in-JS
-- react-i18next for i18n; zustand for state management
-- SWR for data fetching; TRPC for type-safe backend
-- Drizzle ORM with PostgreSQL; Vitest for testing
+- **Framework:** Next.js 16 + React 19 + TypeScript
+- **SPA:** React Router DOM inside Next.js, built with Vite
+- **UI:** @lobehub/ui, Ant Design; antd-style for CSS-in-JS
+- **State:** Zustand
+- **Data fetching:** SWR + TRPC (type-safe backend)
+- **i18n:** react-i18next
+- **Database:** Drizzle ORM + Neon serverless Postgres
+- **Auth:** Clerk
+- **Storage:** Cloudflare R2 (S3-compatible)
+- **Testing:** Vitest + happy-dom
+- **Client-side crypto:** Web Crypto API (AES-256-GCM + PBKDF2)
+- **Hosting:** Cloudflare Pages (migration from Vercel)
+- **AI Proxy:** Cloudflare Worker (stateless streaming proxy)
 
-## Project Structure
+---
 
-```plaintext
-lobehub/
-├── apps/desktop/           # Electron desktop app
-├── packages/               # Shared packages (@lobechat/*)
-│   ├── database/           # Database schemas, models, repositories
-│   ├── agent-runtime/      # Agent runtime
-│   └── ...
-├── src/
-│   ├── app/                # Next.js App Router (backend API + auth)
-│   │   ├── (backend)/     # API routes (trpc, webapi, etc.)
-│   │   ├── spa/            # SPA HTML template service
-│   │   └── [variants]/(auth)/  # Auth pages (SSR required)
-│   ├── routes/             # SPA page components (Vite)
-│   │   ├── (main)/         # Desktop pages
-│   │   ├── (mobile)/       # Mobile pages
-│   │   ├── (desktop)/      # Desktop-specific pages
-│   │   ├── onboarding/     # Onboarding pages
-│   │   └── share/          # Share pages
-│   ├── spa/                # SPA entry points and router config
-│   │   ├── entry.web.tsx   # Web entry
-│   │   ├── entry.mobile.tsx
-│   │   ├── entry.desktop.tsx
-│   │   └── router/         # React Router configuration
-│   ├── store/              # Zustand stores
-│   ├── services/           # Client services
-│   ├── server/             # Server services and routers
-│   └── ...
-└── e2e/                    # E2E tests (Cucumber + Playwright)
-```
-
-## SPA Routes and Features
-
-SPA-related code is grouped under `src/spa/` (entries + router) and `src/routes/` (page segments). We use a **roots vs features** split: route trees only hold page segments; business logic and UI live in features.
-
-- **`src/spa/`** – SPA entry points (`entry.web.tsx`, `entry.mobile.tsx`, `entry.desktop.tsx`) and React Router config (`router/`). Keeps router config next to entries to avoid confusion with `src/routes/`.
-
-- **`src/routes/` (roots)**\
-  Only page-segment files: `_layout/index.tsx`, `index.tsx` (or `page.tsx`), and dynamic segments like `[id]/index.tsx`. Keep these **thin**: they should only import from `@/features/*` and compose layout/page, with no business logic or heavy UI.
-
-- **`src/features/`**\
-  Business components by **domain** (e.g. `Pages`, `PageEditor`, `Home`). Put layout chunks (sidebar, header, body), hooks, and domain-specific UI here. Each feature exposes an `index.ts` (or `index.tsx`) with clear exports.
-
-When adding or changing SPA routes:
-
-1. In `src/routes/`, add only the route segment files (layout + page) that delegate to features.
-2. Implement layout and page content under `src/features/<Domain>/` and export from there.
-3. In route files, use `import { X } from '@/features/<Domain>'` (or `import Y from '@/features/<Domain>/...'`). Do not add new `features/` folders inside `src/routes/`.
-
-See the **spa-routes** skill (`.agents/skills/spa-routes/SKILL.md`) for the full convention and file-division rules.
-
-## Development
-
-### Starting the Dev Environment
+## Development Commands
 
 ```bash
+# Install dependencies
+pnpm install
+
 # SPA dev mode (frontend only, proxies API to localhost:3010)
 bun run dev:spa
 
 # Full-stack dev (Next.js + Vite SPA concurrently)
 bun run dev
+
+# Next.js dev server only
+bun run dev:next
+
+# Build
+bun run build      # Full build (SPA + Next.js)
+bun run build:spa  # SPA only
+bun run build:next # Next.js only
+
+# Lint & Type Check
+bun run lint       # ESLint + Stylelint + type-check + circular deps
+bun run type-check # TypeScript type checking (tsgo --noEmit)
+
+# Testing
+bunx vitest run --silent='passed-only' '[file-path]' # Run specific test
+bun run test                                         # Run all tests (app + server — slow, ~10 min)
+
+# Database
+bun run db:generate # Generate Drizzle migrations
+bun run db:migrate  # Run migrations
+bun run db:studio   # Open Drizzle Studio
+
+# Docker dev environment
+bun run dev:docker      # Start PostgreSQL, Redis, etc.
+bun run dev:docker:down # Stop Docker services
+
+# Planned commands (to be implemented)
+# pnpm test:e2e            # Playwright E2E tests
+# pnpm audit:security      # Security audit checks
 ```
 
-After `dev:spa` starts, the terminal prints a **Debug Proxy** URL:
+> **NEVER** run `bun run test` during development — it takes \~10 minutes. Always run specific test files with `bunx vitest run --silent='passed-only' '[file-path]'`.
 
-```plaintext
-Debug Proxy: https://app.lobehub.com/_dangerous_local_dev_proxy?debug-host=http%3A%2F%2Flocalhost%3A9876
+---
+
+## Coding Rules
+
+### 1. TDD Always
+
+Write failing test first → implement minimum code → verify green → run security checks. No code without tests. No merge without green CI.
+
+### 2. Web Crypto API Only
+
+All encryption MUST use Web Crypto API (AES-256-GCM + PBKDF2) — **never** Node.js `crypto` module in browser code. For test environments that lack Web Crypto, use `@peculiar/webcrypto` polyfill.
+
+### 3. Zero Plaintext Keys
+
+Plaintext API keys must NEVER be stored, logged, or appear in error messages anywhere. No `console.log` with key values. No error messages containing key material. No storing decrypted keys in localStorage, sessionStorage, or cookies.
+
+### 4. Package Boundaries
+
+Shared platform-agnostic logic goes in `packages/core` or `packages/security`, not in the `src/` app directory. The app imports from packages; packages never import from the app.
+
+### 5. Security Coverage
+
+Security-critical code (`packages/core/src/vault/`, `packages/security/`) requires **90% test coverage**. App code requires 75%.
+
+### 6. Conventional Commits
+
+```
+type(scope): description
+
+Types: feat, fix, test, security, refactor, docs, ci, chore
+Scopes: vault, byok, proxy, sync, auth, ui, worker, mobile
 ```
 
-Open this URL to develop locally against the production backend (app.lobehub.com). The proxy page loads your local Vite dev server's SPA into the online environment, enabling HMR with real server config.
+### 7. PR Requirements
 
-### Git Workflow
+- All CI checks must pass
+- Security audit must pass
+- At least 1 approval required for main
+- Fill out PR template completely (including security checklist)
 
-- **Branch strategy**: `canary` is the development branch (cloud production); `main` is the release branch (periodically cherry-picks from canary)
-- New branches should be created from `canary`; PRs should target `canary`
-- Use rebase for `git pull`
-- Commit messages: prefix with gitmoji
-- Branch format: `<type>/<feature-name>`
+### 8. SPA Routes Convention
 
-### Package Management
+Route segments in `src/routes/` must be thin — only import from `@/features/*`. Business logic and heavy UI live in `src/features/<Domain>/`. See `.agents/skills/spa-routes/SKILL.md`.
 
-- `pnpm` for dependency management
-- `bun` to run npm scripts
-- `bunx` for executable npm packages
+### 9. i18n
 
-### Testing
+Add keys to `src/locales/default/namespace.ts`. For dev preview, translate `locales/zh-CN/` and `locales/en-US/`. Don't run `pnpm i18n` — CI handles it.
 
-```bash
-# Run specific test (NEVER run `bun run test` - takes ~10 minutes)
-bunx vitest run --silent='passed-only' '[file-path]'
+### 10. Package Management
 
-# Database package
-cd packages/database && bunx vitest run --silent='passed-only' '[file]'
+Use `pnpm` for dependency management, `bun` to run npm scripts, `bunx` for executable npm packages.
+
+---
+
+## Architecture: Zero-Knowledge Vault
+
+### How It Works
+
+1. **Setup:** User creates a vault password (separate from login password)
+2. **Key derivation:** Browser derives encryption key via PBKDF2 from vault password — key **never** leaves the browser
+3. **Encryption:** API keys encrypted with AES-256-GCM using derived key + random IV per key
+4. **Storage:** Only ciphertext + IV + salt stored in Postgres `api_configs` table
+5. **Sync:** Encrypted blobs sync to new devices; user enters vault password to decrypt locally
+6. **AI requests:** Browser sends decrypted key in Authorization header over HTTPS to Cloudflare Worker proxy → Worker forwards to AI provider → Worker discards key immediately
+
+### What the Server NEVER Sees
+
+- Plaintext API keys
+- Vault password
+- Derived encryption key
+- AI request/response content (proxy is stateless passthrough)
+
+### Database: `api_configs` Table
+
+```sql
+api_configs (
+  id              UUID PRIMARY KEY,
+  user_id         TEXT NOT NULL,        -- from Clerk
+  name            TEXT,                  -- e.g., "My OpenAI"
+  base_url        TEXT,                  -- e.g., "https://api.openai.com/v1"
+  encrypted_api_key BYTEA,             -- AES-256-GCM ciphertext (NEVER plaintext)
+  encryption_iv   BYTEA,               -- random IV, unique per key
+  encryption_salt BYTEA,               -- salt for PBKDF2
+  model_list      JSONB,               -- cached available models
+  is_default      BOOLEAN DEFAULT false,
+  created_at      TIMESTAMPTZ,
+  updated_at      TIMESTAMPTZ
+)
 ```
 
-- Prefer `vi.spyOn` over `vi.mock`
-- Tests must pass type check: `bun run type-check`
-- After 2 failed fix attempts, stop and ask for help
+### AI Traffic Flow
 
-### i18n
+```
+Browser → Cloudflare Worker proxy (stateless) → User's AI provider
+         OR
+Browser → AI provider directly (if CORS supported, bypasses proxy)
+```
 
-- Add keys to `src/locales/default/namespace.ts`
-- For dev preview: translate `locales/zh-CN/` and `locales/en-US/`
-- Don't run `pnpm i18n` - CI handles it
+### Infrastructure
 
-## Skills (Auto-loaded by Claude)
+- **Database:** Neon serverless Postgres
+- **Object storage:** Cloudflare R2
+- **Auth:** Clerk
+- **Hosting:** Cloudflare Pages
+- **AI proxy:** Cloudflare Worker (stateless, no persistent storage)
 
-Claude Code automatically loads relevant skills from `.agents/skills/`.
+---
+
+## Critical Files (To Be Implemented)
+
+| File                                                      | Purpose                                          |
+| --------------------------------------------------------- | ------------------------------------------------ |
+| `packages/core/src/vault/crypto.ts`                       | AES-256-GCM encrypt/decrypt using Web Crypto API |
+| `packages/core/src/vault/keyDerivation.ts`                | PBKDF2 key derivation from vault password        |
+| `packages/core/src/vault/vaultStore.ts`                   | Zustand store for vault lock/unlock state        |
+| `packages/core/src/vault/__tests__/crypto.test.ts`        | Vault crypto test suite                          |
+| `packages/core/src/vault/__tests__/keyDerivation.test.ts` | Key derivation test suite                        |
+| `packages/core/src/vault/__tests__/vaultStore.test.ts`    | Vault store test suite                           |
+| `packages/security/src/validation/urlValidator.ts`        | URL validation for API endpoints                 |
+| `packages/security/src/validation/inputSanitizer.ts`      | Input sanitization                               |
+| `packages/types/src/vault.ts`                             | TypeScript interfaces for vault types            |
+| `packages/types/src/api.ts`                               | TypeScript interfaces for API config types       |
+| `workers/ai-proxy/src/index.ts`                           | Cloudflare Worker streaming proxy                |
+
+---
+
+## Lessons Learned
+
+<!-- This section is updated throughout development. Every non-obvious discovery gets logged here. -->
+
+<!-- Format: ### [YYYY-MM-DD] — Short title -->
+
+<!-- Context / Problem / Solution / Files affected -->
+
+_No entries yet. This section will grow as development progresses._
